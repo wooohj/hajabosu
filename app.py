@@ -49,7 +49,7 @@ with 탭과정:
             st.subheader("③ 코드 판정  :green[코드]")
             st.caption("번호·조치기한·공사 찾기·보증 판정은 AI 없이 업무설명 규칙으로 계산합니다. (rules.py)")
             try:
-                행 = run.행만들기(파일, 결과, 1, 공사목록)
+                행 = run.행만들기(파일.name, 결과, 1, 공사목록)
                 찾은 = rules.공사찾기(공사목록, 결과["위치"], 결과["공종"])
                 st.write(
                     f"위치 `{결과['위치']}` · 공종 `{결과['공종']}`이 같은 공사: "
@@ -75,10 +75,14 @@ with 탭과정:
 
 # ---------------------------------------------------------------- 하자대장
 with 탭대장:
-    if not run.대장경로.exists():
-        st.info("아직 하자대장이 없습니다. 터미널에서 `python run.py`를 실행하면 data/하자대장.csv가 만들어집니다.")
-    else:
-        대장 = pd.read_csv(run.대장경로, dtype=str, encoding="utf-8-sig").fillna("")
+    try:
+        대장 = pd.DataFrame(rules.대장읽기(), columns=run.항목).fillna("")
+    except RuntimeError as e:
+        대장 = None
+        st.error(f"하자대장을 읽지 못했습니다: {e}")
+    if 대장 is not None and 대장.empty:
+        st.info("아직 하자대장이 없습니다. 터미널에서 `python run.py`를 실행하면 DB의 하자대장 테이블에 저장됩니다.")
+    elif 대장 is not None:
         a, b, c, d = st.columns(4)
         a.metric("전체", f"{len(대장)}건")
         b.metric("긴급", f"{(대장['긴급도'] == '긴급').sum()}건")
@@ -90,7 +94,7 @@ with 탭대장:
             return [색] * len(행)
 
         st.dataframe(대장.style.apply(강조, axis=1), hide_index=True, width="stretch")
-        st.caption("주황색 줄은 담당자 확인이 필요한 건입니다. 저장 위치: data/하자대장.csv")
+        st.caption("주황색 줄은 담당자 확인이 필요한 건입니다. 저장 위치: DB 하자대장 테이블")
 
 # ---------------------------------------------------------------- 기능 분담
 with 탭분담:
